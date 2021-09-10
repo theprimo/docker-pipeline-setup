@@ -1,0 +1,5 @@
+docker pipeline setup
+
+flow :   postgres db -> kafka stream -> flink transformation -> couchbase db
+connector:  kafka connector
+container:  docker
