@@ -1,0 +1,214 @@
+version: "2.1"
+
+services:
+ 
+  postgres1:
+    build:
+      context: ./postgres
+    hostname: postgres1
+    expose:
+      - "5432"
+    ports:
+      - "5432:5432"
+    volumes:      
+      - postgres_dbdata:/var/lib/postgresql/data      
+    restart: always
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PORT=5432
+
+  zookeeper1:
+    image: zookeeper:3.4
+    hostname: zookeeper1
+    expose:
+      - "2181"
+    ports:
+      - "2181:2181"
+    mem_limit: 4096m
+    mem_reservation: 256m
+    volumes:
+      - zoo_data:/zookeeper/data
+      - zoo_conf:/zookeeper/conf
+      - zoo_txns:/zookeeper/txns
+      - zoo_logs:/zookeeper/logs
+      - zoo_datalog:/zookeeper/datalog
+    restart: always
+    environment:
+      - ZOO_MY_ID=1
+      - ZOO_SERVERS="server.1=0.0.0.0:2888:3888"
+      - ZOOKEEPER_CONNECT=zookeeper1:2181
+
+  kafka1:
+      image : wurstmeister/kafka:2.12-2.2.0
+      hostname: kafka1
+      expose:
+        - "9092"
+      ports:
+        - "9092:9092"
+        - "9093:9093"
+      mem_limit: 4096m
+      mem_reservation: 512m
+      volumes:
+        - kafka_data:/kafka/data
+        - kafka_logs:/kafka/logs
+        - kafka_config:/kafka/config
+      environment:
+        - ZOOKEEPER_IP=zookeeper1
+        - BOOTSTRAP_SERVERS=kafka1:9092
+        - KAFKA_BROKER_ID=1
+        - KAFKA_ZOOKEEPER_CONNECT=zookeeper1:2181        
+        - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka1:9092
+        - KAFKA_ADVERTISED_HOST_NAME=kafka1
+        - KAFKA_ZOOKEEPER_CONNECTION_TIMEOUT_MS=36000
+      depends_on:
+        - zookeeper1
+      links:
+        - zookeeper1
+        
+  kafkaconnect:
+    build:
+      context: ./connector
+    hostname: kafkaconnect
+    expose:
+      - "8083"
+    ports:
+      - "8083:8083"
+    volumes:      
+      - connect_data:/usr/kafkaconnect/data      
+    depends_on:
+      - zookeeper1
+      - kafka1
+      - postgres1
+    links:
+      - zookeeper1
+      - kafka1
+      - postgres1
+    environment:
+      - BOOTSTRAP_SERVERS=kafka1:9092
+      - GROUP_ID=1 
+      - CONFIG_STORAGE_TOPIC=my_connect_configs
+      - OFFSET_STORAGE_TOPIC=my_connect_offsets
+      - STATUS_STORAGE_TOPIC=my_connect_status
+    
+  connectorsetup:
+    build:
+      context: ./connectorsetup
+    hostname: connectorsetup
+    depends_on:
+      - kafkaconnect
+    links:
+      - zookeeper1
+      - kafka1
+      - postgres1
+      - kafkaconnect
+    volumes:
+      - connector_data:/usr/kafkaconnector/data   
+  couchbase1:
+    image : couchbase/server:enterprise-6.0.1
+    hostname: couchbase1
+    ports:
+      - "8091-8094:8091-8094"
+      - "11210:11210"
+    volumes:
+      - couchbase_data:/opt/couchbase/var
+
+  couchbasesetup:
+    build:
+      context: ./couchbase
+    depends_on:
+      - couchbase1
+    links:
+      - couchbase1      
+    volumes:
+      - couchbasesetup_data:/opt/couchbasesetup/var
+      
+  jobmanager:
+    build:
+      context: ./flink_core
+    hostname: jobmgr1
+    expose:
+      - "6123"
+    ports:
+      - "8081:8081"
+      - "6123:6123"
+    mem_limit: 4096m
+    mem_reservation: 512m
+    volumes:
+      - flink_data:/opt/flink/state_dir
+      - flink_jm_logs:/opt/flink/log/
+    command: jobmanager
+    depends_on:
+      - zookeeper1
+    links:
+      - zookeeper1
+      - kafka1
+      - couchbase1
+    environment:
+      - JOB_MANAGER_RPC_ADDRESS=jobmanager
+      - zookeeperUrl=zookeeper1:2181
+      - JAVA_OPTS="-Xms256m -Xmx512m"
+      
+  taskmanager1:
+    build:
+      context: ./flink_core
+    hostname: taskmgr1
+    expose:
+      - "6121"
+      - "6122"
+      - "8889"
+    ports:
+      - "8889:8889"
+      - "8888:8888"
+    mem_limit: 4096m
+    mem_reservation: 512m
+    volumes:
+      - flink_data:/opt/flink/state_dir
+      - flink_tm1_logs:/opt/flink/log/
+    depends_on:
+      - jobmanager
+      - zookeeper1
+      - kafka1
+      - couchbase1    
+    command: taskmanager
+    environment:
+      - nodeId=node1
+      - zookeeperUrl=zookeeper1:2181
+      - JOB_MANAGER_RPC_ADDRESS=jobmanager
+      - JAVA_OPTS="-Xms256m -Xmx512m"
+      - DEFAULT_ENV_JAVA_OPTS_TM="-Xms256m -Xmx512m"
+  
+volumes:
+  postgres_dbdata:
+    driver: local
+  zoo_data:
+    driver: local
+  zoo_conf:
+    driver: local
+  zoo_txns:
+    driver: local  
+  zoo_logs:
+    driver: local
+  zoo_datalog:
+    driver: local  
+  kafka_data:
+    driver: local
+  kafka_logs:
+    driver: local
+  kafka_config:
+    driver: local
+  connect_data:
+    driver: local
+  connector_data:
+    driver: local
+  couchbase_data:
+    driver: local
+  couchbasesetup_data:
+    driver: local
+  flink_data:
+    driver: local
+  flink_jm_logs:
+    driver: local
+  flink_tm1_logs:
+    driver: local
+ 

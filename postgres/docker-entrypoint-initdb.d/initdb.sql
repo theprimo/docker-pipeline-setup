@@ -1,0 +1,4 @@
+CREATE DATABASE inventory;
+\c inventory
+--CREATE TABLE dumb_table(id SERIAL PRIMARY KEY, name VARCHAR);
+CREATE TABLE dumb_table(id SERIAL PRIMARY KEY, name VARCHAR, SRC_TABLE_NAME VARCHAR, rrn VARCHAR, bnyclt VARCHAR, chdrnum VARCHAR);
