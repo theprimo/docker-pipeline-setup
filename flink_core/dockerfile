@@ -1,0 +1,35 @@
+FROM flink:1.6.1
+
+ENV FLINK_CONF_DIR $FLINK_HOME/conf
+ENV namespace ns1
+ENV apiPath $FLINK_CONF_DIR/openapi.json
+ENV dsConfigPath $FLINK_CONF_DIR/datasources.json
+ENV log.file $FLINK_HOME/log
+
+RUN mkdir /opt/flink/conf/scripts && mkdir /opt/flink/core_jobs && mkdir /opt/flink/state_dir
+
+COPY lib/*.jar /opt/flink/lib/
+
+COPY conf/scripts/* /opt/flink/conf/scripts/
+
+COPY conf/* /opt/flink/conf/
+
+COPY bin/* /opt/flink/bin/
+
+COPY core_jobs/* /opt/flink/core_jobs/
+
+COPY javaflow.instrument-continuations.jar /opt/flink/
+
+RUN chmod 777 /opt/flink/lib/*.jar && chown -R 9999:9999 /opt/flink/lib
+
+RUN chmod 777 /opt/flink/conf/scripts/* && chown -R 9999:9999 /opt/flink/conf/scripts
+
+RUN chmod 777 /opt/flink/conf/* && chown -R 9999:9999 /opt/flink/conf
+
+RUN chmod 777 /opt/flink/bin/* && chown -R 9999:9999 /opt/flink/bin
+
+RUN chmod 777 /opt/flink/core_jobs/*.sh && chown -R 9999:9999 /opt/flink/core_jobs
+
+RUN chown -R 9999:9999 /opt/flink/state_dir && chown -R 9999:9999 /opt/flink/log
+
+RUN chmod 777 /opt/flink/* && chown -R 9999:9999 /opt/flink/*

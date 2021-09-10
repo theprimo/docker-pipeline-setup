@@ -1,0 +1,9 @@
+{
+"datalake": {
+				"type": "couchbase",
+				"nodes": "couchbase1",
+				"user": "Administrator",
+				"pass": "password",
+				"bucketName":"data"
+	}
+}
