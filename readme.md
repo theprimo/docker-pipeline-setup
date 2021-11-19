@@ -1,6 +1,14 @@
+# Info
+
+docker pipeline setup
+
+flow :   postgres db -> kafka stream -> flink transformation -> couchbase db
+connector:  kafka connector
+container:  docker
+
+
 # docker-compose setup
 
-```
 To start services
 
 $ make compose-up 
@@ -17,4 +25,3 @@ To clean all service
 
 $ make compose-clean
 
-```
